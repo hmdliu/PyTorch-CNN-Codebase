@@ -28,7 +28,7 @@ CONFIG = Dict({
     'seed': 1,
     'lr': 0.01,
     'epochs': 3,
-    'log_step': 200,
+    'step': 200,
     # utils
     'track_time': True,
     'dump_summary': False,
@@ -89,7 +89,7 @@ class Trainer():
             loss = F.cross_entropy(output, target)
             loss.backward()
             self.optimizer.step()
-            if batch_idx % self.config.log_step == 0:
+            if batch_idx % self.config.step == 0:
                 print('Step %d: [%d/%d], Loss: %.4f' % (
                     batch_idx,
                     batch_idx * len(data),
@@ -129,6 +129,16 @@ class Trainer():
                 'test_loss': '%.4f' % test_loss,
             })
             self.results.append(curr_res)
+            if self.config.dump_summary:
+                self.writer.add_scalar("accuracy/train", train_acc, epoch+1)
+                self.writer.add_scalar("accuracy/val", test_acc, epoch+1)
+                self.writer.add_scalar("loss/train", train_loss, epoch+1)
+                self.writer.add_scalar("loss/val", test_loss, epoch+1)
+        
+        if self.config.track_time:
+            exp_time_mins = int(time.time() - self.start_time) // 60
+            print('\n[Time]: %.2fmins' % exp_time_mins)
+
 
 def get_dataset(dataset, mode='train'):
     avail_datasets = {
