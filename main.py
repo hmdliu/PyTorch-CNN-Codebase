@@ -8,8 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils import data
-from torch.autograd import Variable
-
 
 from util.model import Sample_Net
 from util.dataset import get_mnist, get_cifar10
@@ -83,7 +81,6 @@ class Trainer():
         for batch_idx, (data, target) in enumerate(self.train_loader):
             if self.config.use_cuda:
                 data, target = data.to(self.device), target.to(self.device)
-            # data, target = Variable(data), Variable(target)
             self.optimizer.zero_grad()
             output = self.model(data)
             loss = F.cross_entropy(output, target)
@@ -119,13 +116,13 @@ class Trainer():
             print('\n============ start testing ==================\n')
             train_acc, train_loss = self.eval(self.train_loader)
             test_acc, test_loss = self.eval(self.test_loader)
-            print('Train Accuracy: %.2f\tTrain Loss: %.4f' % (train_acc, train_loss))
-            print('Test Accuracy: %.2f\tTest Loss: %.4f' % (test_acc, test_loss))
+            print('Train Accuracy: %.4f\tTrain Loss: %.4f' % (train_acc, train_loss))
+            print('Test Accuracy: %.4f\tTest Loss: %.4f' % (test_acc, test_loss))
             curr_res = Dict({
                 'epoch': epoch,
-                'train_acc': '%.2f' % train_acc,
+                'train_acc': '%.4f' % train_acc,
                 'train_loss': '%.4f' % train_loss,
-                'test_acc': '%.2f' % test_acc,
+                'test_acc': '%.4f' % test_acc,
                 'test_loss': '%.4f' % test_loss,
             })
             self.results.append(curr_res)
