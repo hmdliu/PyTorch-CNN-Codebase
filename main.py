@@ -16,32 +16,38 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils import data
 
-from util.model import Sample_Net
+from util.model import Sample_Net, LeNet5
 from util.dataset import get_mnist, get_cifar10
 from util.acuuracy import batch_classification_accuracy
 
 PATH = os.getcwd()
 CONFIG = Dict({
     # model
-    'model': 'sample',
-    'model_args': {'in_feats': 784, 'out_feats': 10},
+    'model': 'LeNet5',
+    'model_args': {'in_feats': 3, 'n_classes': 10},
+    # 'model': 'sample',
+    # 'model_args': {'in_feats': 784, 'out_feats': 10},
+
     # dataset
-    'dataset': 'mnist',
+    'dataset': 'cifar10',
+    # 'dataset': 'mnist',
     'train_batch_size': 64,
     'test_batch_size': 64,
     'dl_workers': 2,
+
     # training setting
     'seed': 1,
     'lr': 0.01,
-    'epochs': 3,
+    'epochs': 20,
     'step': 200,
     'optimizer': 'sgd',
     'criterion': 'cross_entropy',
     'accr_type': 'classification',
+
     # utils
     'track_time': True,
     'dump_summary': True,
-    'export_weights': True
+    'export_weights': False
 })
 
 class Trainer():
@@ -73,7 +79,7 @@ class Trainer():
         )
         self.test_loader = data.DataLoader(
             dataset=test_dataset,
-            batch_size=self.config.train_batch_size,
+            batch_size=self.config.test_batch_size,
             shuffle=False,
             num_workers=self.config.dl_workers
         )
@@ -177,7 +183,8 @@ def get_dataset(dataset, mode='train'):
 
 def get_model(model, model_args):
     avail_models = {
-        'sample': Sample_Net
+        'sample': Sample_Net,
+        'LeNet5': LeNet5
     }
     assert model in avail_models
     return avail_models[model](**model_args)
