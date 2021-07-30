@@ -11,6 +11,7 @@ from torch.utils import data
 
 from util.model import Sample_Net
 from util.dataset import get_mnist, get_cifar10
+from util.acuuracy import batch_classification_accuracy
 
 PATH = os.getcwd()
 CONFIG = Dict({
@@ -27,10 +28,13 @@ CONFIG = Dict({
     'lr': 0.01,
     'epochs': 3,
     'step': 200,
+    'optimizer': 'sgd',
+    'criterion': 'cross_entropy',
+    'accr_type': 'classification',
     # utils
     'track_time': True,
-    'dump_summary': False,
-    'export_weights': False
+    'dump_summary': True,
+    'export_weights': True
 })
 
 class Trainer():
@@ -74,7 +78,9 @@ class Trainer():
             device_ids = [i for i in range(torch.cuda.device_count())]
             model = nn.DataParallel(model, device_ids)
         self.model = model.to(self.device)
-        self.optimizer = optim.SGD(self.model.parameters(), lr=self.config.lr)
+        self.optimizer = get_optimizer(self.config.optimizer, self.model, self.config.lr)
+        self.criterion = get_criterion(self.config.criterion)
+        self.calc_accr = get_calc_accr(self.config.accr_type)
 
     def train_one_epoch(self, epoch_num):
         self.model.train()
@@ -83,7 +89,7 @@ class Trainer():
                 data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = F.cross_entropy(output, target)
+            loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
             if batch_idx % self.config.step == 0:
@@ -101,15 +107,15 @@ class Trainer():
             if self.config.use_cuda:
                 data, target = data.to(self.device), target.to(self.device)
             output = self.model(data)
-            loss += F.cross_entropy(output, target, reduction='sum').item()
-            pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+            batch_correct, batch_loss = self.calc_accr(output, target)
+            correct += batch_correct
+            loss += batch_loss
         final_acc = int(correct) / len(data_loader.dataset)
         final_loss = float(loss) / len(data_loader.dataset)
         return final_acc, final_loss
 
     def train(self):
-        self.results = []
+        self.best_pred = Dict({'accuracy': 0.0, 'state_dict': self.model.state_dict()})
         for epoch in range(self.config.epochs):
             print('\n============ train epoch [%d/%d] ============\n' % (epoch+1, self.config.epochs))
             self.train_one_epoch(epoch)
@@ -117,24 +123,40 @@ class Trainer():
             train_acc, train_loss = self.eval(self.train_loader)
             test_acc, test_loss = self.eval(self.test_loader)
             print('Train Accuracy: %.4f\tTrain Loss: %.4f' % (train_acc, train_loss))
-            print('Test Accuracy: %.4f\tTest Loss: %.4f' % (test_acc, test_loss))
-            curr_res = Dict({
-                'epoch': epoch,
-                'train_acc': '%.4f' % train_acc,
-                'train_loss': '%.4f' % train_loss,
-                'test_acc': '%.4f' % test_acc,
-                'test_loss': '%.4f' % test_loss,
-            })
-            self.results.append(curr_res)
+            print('Val Accuracy: %.4f\tVal Loss: %.4f' % (test_acc, test_loss))
+            if test_acc > self.best_pred.accuracy:
+                self.best_pred.accuracy = test_acc
+                self.best_pred.state_dict = self.model.state_dict()
             if self.config.dump_summary:
                 self.writer.add_scalar("accuracy/train", train_acc, epoch+1)
                 self.writer.add_scalar("accuracy/val", test_acc, epoch+1)
                 self.writer.add_scalar("loss/train", train_loss, epoch+1)
                 self.writer.add_scalar("loss/val", test_loss, epoch+1)
         
+        print('\n[Best Pred]: %.4f' % self.best_pred.accuracy)
+
         if self.config.track_time:
             exp_time_mins = int(time.time() - self.start_time) // 60
-            print('\n[Time]: %.2fmins' % exp_time_mins)
+            print('\n[Time]: %.2fmins\n' % exp_time_mins)
+        
+        if self.config.export_weights:
+            export_dir = os.path.join(PATH, 'results')
+            export_pre = os.path.join(export_dir, '%s_%s_%s' % (
+                self.config.model, 
+                self.config.dataset, 
+                int(time.time())
+            ))
+            if not os.path.isdir(export_dir):
+                os.makedirs(export_dir)
+            with open(export_pre + '.txt', 'w') as f:
+                info = []
+                for k, v in self.config.items():
+                    info.append('%s: %s' % (k, v))
+                info.append('\n[Best Pred]: %.4f\n' % self.best_pred.accuracy)
+                info.append(str(self.model))
+                f.write('\n'.join(info))
+            torch.save(self.best_pred.state_dict, export_pre + '.pth')
+            print('[Best Weights]: Successfully exported.\n')
 
 
 def get_dataset(dataset, mode='train'):
@@ -152,6 +174,27 @@ def get_model(model, model_args):
     }
     assert model in avail_models
     return avail_models[model](**model_args)
+
+def get_optimizer(optimizer, model, lr):
+    avail_optimizer = {
+        'sgd': optim.SGD
+    }
+    assert optimizer in avail_optimizer
+    return avail_optimizer[optimizer](model.parameters(), lr=lr)
+
+def get_criterion(criterion):
+    avail_criterion = {
+        'cross_entropy': F.cross_entropy
+    }
+    assert criterion in avail_criterion
+    return avail_criterion[criterion]
+
+def get_calc_accr(acc_type):
+    avail_acc_type = {
+        'classification': batch_classification_accuracy
+    }
+    assert acc_type in avail_acc_type
+    return avail_acc_type[acc_type]
 
 if __name__ == '__main__':
     trainer = Trainer(CONFIG)

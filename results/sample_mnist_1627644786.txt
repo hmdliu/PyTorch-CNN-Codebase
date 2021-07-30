@@ -1,0 +1,23 @@
+model: sample
+model_args: {'in_feats': 784, 'out_feats': 10}
+dataset: mnist
+train_batch_size: 64
+test_batch_size: 64
+dl_workers: 2
+seed: 1
+lr: 0.01
+epochs: 3
+step: 200
+optimizer: sgd
+criterion: cross_entropy
+accr_type: classification
+track_time: True
+dump_summary: True
+export_weights: True
+use_cuda: {}
+
+[Best Pred]: 0.9173
+
+Sample_Net(
+  (linear): Linear(in_features=784, out_features=10, bias=True)
+)
