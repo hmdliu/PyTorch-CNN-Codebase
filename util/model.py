@@ -1,3 +1,9 @@
+#########################################################################
+# A compact PyTorch codebase for CNN experiments
+# Created by: Hammond Liu (hammond.liu@nyu.edu)
+# License: GPL-3.0
+# Project Url: https://github.com/hmdliu/PyTorch-CNN-Codebase/
+#########################################################################
 
 from torch import nn
 
