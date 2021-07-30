@@ -1,9 +1,9 @@
-#########################################################################
+################################################################################################
 # A compact PyTorch codebase for CNN experiments
-# Created by: Hammond Liu (hammond.liu@nyu.edu)
-# License: GPL-3.0
-# Project Url: https://github.com/hmdliu/PyTorch-CNN-Codebase/
-#########################################################################
+# Modified by: Hammond Liu (hammond.liu@nyu.edu)
+# Code Citation: CSCI-GA 2272-001 (Fall 2020) by Prof. Robert Fergus
+# Url: https://colab.research.google.com/drive/1erzXbNGBqSaL69_gfrvKCVVH3PQHoCaG?usp=sharing
+################################################################################################
 
 import torch.nn.functional as F
 
